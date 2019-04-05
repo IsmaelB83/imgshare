@@ -2,24 +2,21 @@ const path = require('path');
 const fs = require('fs-extra');
 const helpers = require('../helpers/libs');
 const { Image, Comment } = require('../models/index');
+const sidebar = require('../helpers/sidebar');
 const md5 = require('md5');
 
 const ctrl = {};
 
 ctrl.index = async (req, res) => {
-    try {
-        const viewModel = { image: {}, comments: {}};
-        viewModel.image = await Image.findOne({filename: {$regex: req.params.image_id}});
-        if (viewModel.image) {
-            viewModel.image.views++;
-            await viewModel.image.save();
-            viewModel.comments = await Comment.find({image_id: viewModel.image._id}).exec();
-            res.render('image', viewModel);
-        } else {
-            res.redirect('/');
-        }
-    } catch (error) {
-        console.log(error);
+    let viewModel = { image: {}, comments: {}};
+    viewModel.image = await Image.findOne({filename: {$regex: req.params.image_id}});
+    if (viewModel.image) {
+        viewModel.image.views++;
+        await viewModel.image.save();
+        viewModel.comments = await Comment.find({image_id: viewModel.image._id}).exec();
+        viewModel = await sidebar(viewModel);
+        res.render('image', viewModel);
+    } else {
         res.redirect('/');
     }
 };
@@ -80,18 +77,14 @@ ctrl.comment = async (req, res) => {
 };
 
 ctrl.remove = async (req, res) => {
-    try {
-        let image = await Image.findOne({filename: req.params.image_id});
-        if (image) {
-            await fs.unlink(path.resolve(`./src/public/upload/${image.filename}`));
-            await Comment.deleteMany({image_id: image._id});
-            await image.remove();
-            res.json( { ok: 'Imagen borrada' });
-        } else {
-            res.status(500).json({error: 'Internal error'});
-        }        
-    } catch (error) {
-         console.log(error);
+    let image = await Image.findOne({filename: req.params.image_id});
+    if (image) {
+        await fs.unlink(path.resolve(`./src/public/upload/${image.filename}`));
+        await Comment.deleteMany({image_id: image._id});
+        await image.remove();
+        res.json( { ok: 'Imagen borrada' });
+    } else {
+        res.status(500).json({error: 'Internal error'});
     }
 };
 
